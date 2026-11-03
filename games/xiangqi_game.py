@@ -247,3 +247,48 @@ def analyze_xiangqi_moves(history, player_color, threshold=1.5):
                 "severity": "blunder" if loss >= 3 else "mistake",
             })
     return mistakes
+from core import pikafish_engine
+
+_PIECE_TO_FEN = {
+    ("r","K"):"K", ("r","A"):"A", ("r","E"):"E", ("r","H"):"H",
+    ("r","R"):"R", ("r","C"):"C", ("r","P"):"P",
+    ("b","K"):"k", ("b","A"):"a", ("b","E"):"e", ("b","H"):"h",
+    ("b","R"):"r", ("b","C"):"c", ("b","P"):"p",
+}
+
+def board_to_fen(board, turn):
+    """turn: 'r' or 'b'."""
+    rows = []
+    for r in range(10):
+        row = ""
+        empty = 0
+        for c in range(9):
+            p = board[r][c]
+            if p is None:
+                empty += 1
+            else:
+                if empty:
+                    row += str(empty); empty = 0
+                row += _PIECE_TO_FEN[(p["color"], p["type"])]
+        if empty:
+            row += str(empty)
+        rows.append(row)
+    return "/".join(rows) + (" w" if turn == "r" else " b") + " - - 0 1"
+
+def get_ai_move(board, color, difficulty):
+    # Try Pikafish for hard
+    if difficulty == "hard" and pikafish_engine.is_available():
+        fen = board_to_fen(board, color)
+        result = pikafish_engine.best_move_uci(fen, depth=10)
+        if result:
+            frm, to = result
+            # convert "a0".."i9" to (row,col)
+            fc = ord(frm[0]) - ord("a")
+            fr = int(frm[1])
+            tc = ord(to[0]) - ord("a")
+            tr = int(to[1])
+            return ((fr, fc), (tr, tc))
+
+    # fallback to existing heuristic (paste the previous implementation here)
+    from games._xiangqi_fallback import heuristic_move
+    return heuristic_move(board, color, difficulty)
