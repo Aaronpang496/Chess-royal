@@ -1,59 +1,65 @@
 import streamlit as st
-import json
-import os
+import json, os
 
 XP_FILE = "xp_save.json"
 
-def _load_xp():
+def _load():
     if os.path.exists(XP_FILE):
         try:
-            with open(XP_FILE, "r") as f:
+            with open(XP_FILE) as f:
                 return json.load(f)
         except Exception:
             pass
-    return {"xp": 0, "level": 1, "total_wins": 0}
+    return {
+        "chess":    {"xp": 0, "level": 1, "wins": 0},
+        "xiangqi":  {"xp": 0, "level": 1, "wins": 0},
+        "go":       {"xp": 0, "level": 1, "wins": 0},
+    }
 
-def _save_xp(data):
+def _save(data):
     with open(XP_FILE, "w") as f:
-        json.dump(data, f)
+        json.dump(data, f, indent=2)
 
 def init_state():
-    saved = _load_xp()
-    defaults = {
-        # global
-        "current_game": "chess",   # chess | xiangqi | go
-        "xp": saved["xp"],
-        "level": saved["level"],
-        "total_wins": saved["total_wins"],
+    saved = _load()
+    for game in ("chess", "xiangqi", "go"):
+        st.session_state.setdefault(f"{game}_xp", saved[game]["xp"])
+        st.session_state.setdefault(f"{game}_level", saved[game]["level"])
+        st.session_state.setdefault(f"{game}_wins", saved[game]["wins"])
 
-        # per-game reset flags
-        "chess_board": None,
-        "chess_history": [],
-        "chess_game_over": False,
-        "chess_winner": None,
-        "chess_xp_awarded": False,
-        "chess_analysis": None,
+    st.session_state.setdefault("current_game", "chess")
 
-        "xq_board": None,
-        "xq_history": [],
-        "xq_game_over": False,
-        "xq_winner": None,
-        "xq_xp_awarded": False,
-        "xq_analysis": None,
+    # chess
+    st.session_state.setdefault("chess_board", None)
+    st.session_state.setdefault("chess_history", [])       # list of {"uci","san","fen"}
+    st.session_state.setdefault("chess_game_over", False)
+    st.session_state.setdefault("chess_winner", None)
+    st.session_state.setdefault("chess_xp_awarded", False)
+    st.session_state.setdefault("chess_analysis", None)
+    st.session_state.setdefault("chess_selected", None)    # (row,col) for click UI
 
-        "go_board": None,
-        "go_history": [],
-        "go_game_over": False,
-        "go_winner": None,
-        "go_xp_awarded": False,
-        "go_passes": 0,
-    }
-    for k, v in defaults.items():
-        st.session_state.setdefault(k, v)
+    # xiangqi
+    st.session_state.setdefault("xq_board", None)
+    st.session_state.setdefault("xq_history", [])
+    st.session_state.setdefault("xq_game_over", False)
+    st.session_state.setdefault("xq_winner", None)
+    st.session_state.setdefault("xq_xp_awarded", False)
+    st.session_state.setdefault("xq_analysis", None)
+
+    # go
+    st.session_state.setdefault("go_board", None)
+    st.session_state.setdefault("go_history", [])
+    st.session_state.setdefault("go_game_over", False)
+    st.session_state.setdefault("go_winner", None)
+    st.session_state.setdefault("go_xp_awarded", False)
+    st.session_state.setdefault("go_passes", 0)
 
 def persist_xp():
-    _save_xp({
-        "xp": st.session_state.xp,
-        "level": st.session_state.level,
-        "total_wins": st.session_state.total_wins,
-    })
+    data = {}
+    for game in ("chess", "xiangqi", "go"):
+        data[game] = {
+            "xp": st.session_state[f"{game}_xp"],
+            "level": st.session_state[f"{game}_level"],
+            "wins": st.session_state[f"{game}_wins"],
+        }
+    _save(data)
